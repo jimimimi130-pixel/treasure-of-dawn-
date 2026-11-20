@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Treasure of Dawn - Interactive Prototype</title>
+  <title>Treasure of Dawn - Detailed City Prototype</title>
   <style>
     * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
     body {
@@ -41,10 +41,10 @@
     }
     canvas#cityMap {
       width: 100%;
-      height: 220px;
+      height: 270px;
       display: block;
       border-radius: 6px;
-      background: #132238;
+      background: #0c2742;
       touch-action: manipulation;
     }
     .legend {
@@ -53,7 +53,7 @@
       gap: 10px;
       font-size: 11px;
       color: #cbd5e1;
-      margin-top: 6px;
+      margin-top: 8px;
     }
     .dot {
       display: inline-block;
@@ -127,9 +127,9 @@
 
     <!-- Visual Interactive Map -->
     <div class="card">
-      <strong>Tap Any District on the Map to Travel</strong>
+      <strong>Tap Any District or Landmark on the City Map</strong>
       <div class="map-wrap">
-        <canvas id="cityMap" width="400" height="220"></canvas>
+        <canvas id="cityMap" width="420" height="270"></canvas>
         <div class="legend">
           <span><i class="dot" style="background:#22c55e;"></i>Safe Zone</span>
           <span><i class="dot" style="background:#f59e0b;"></i>Contested Zone</span>
@@ -197,10 +197,46 @@
 
   <script>
     const districts = [
-      { id: "harbor", name: "Harbor Plaza", safe: true, x: 15, y: 15, w: 175, h: 90, color: "#14532d", border: "#22c55e" },
-      { id: "cafe", name: "Seafront Cafe", safe: true, x: 210, y: 15, w: 175, h: 90, color: "#14532d", border: "#22c55e" },
-      { id: "market", name: "Old Market", safe: false, x: 15, y: 120, w: 175, h: 85, color: "#78350f", border: "#f59e0b" },
-      { id: "warehouse", name: "Abandoned Warehouse", safe: false, x: 210, y: 120, w: 175, h: 85, color: "#7f1d1d", border: "#ef4444" }
+      {
+        id: "harbor",
+        name: "Harbor Plaza",
+        safe: true,
+        x: 16, y: 18, w: 182, h: 102,
+        ground: "#1e3a2f",
+        sidewalk: "#475569",
+        border: "#22c55e",
+        spot: { x: 105, y: 86 }
+      },
+      {
+        id: "cafe",
+        name: "Seafront Cafe",
+        safe: true,
+        x: 222, y: 18, w: 182, h: 102,
+        ground: "#1e3a2f",
+        sidewalk: "#475569",
+        border: "#22c55e",
+        spot: { x: 310, y: 86 }
+      },
+      {
+        id: "market",
+        name: "Old Market",
+        safe: false,
+        x: 16, y: 148, w: 182, h: 104,
+        ground: "#3b2818",
+        sidewalk: "#57534e",
+        border: "#f59e0b",
+        spot: { x: 105, y: 214 }
+      },
+      {
+        id: "warehouse",
+        name: "Abandoned Warehouse",
+        safe: false,
+        x: 222, y: 148, w: 182, h: 104,
+        ground: "#3b181c",
+        sidewalk: "#4b5563",
+        border: "#ef4444",
+        spot: { x: 268, y: 214 }
+      }
     ];
 
     const state = {
@@ -217,7 +253,8 @@
       humans: 5,
       bots: 0,
       guardsAlive: 2,
-      guardPos: { x: 295, y: 162, dir: 1 }
+      guardPos: { x: 312, y: 212, dir: 1 },
+      playerPos: { x: 105, y: 86 }
     };
 
     const canvas = document.getElementById("cityMap");
@@ -229,15 +266,94 @@
       log.innerHTML = `<div>[${time}] ${msg}</div>` + log.innerHTML;
     }
 
-    function getDistrictCenter(d) {
-      return { x: d.x + d.w / 2, y: d.y + d.h / 2 };
+    function drawRoadsAndPaths() {
+      // Main horizontal avenue between north & south districts
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(10, 122, 400, 24);
+
+      // Main vertical street between west & east districts
+      ctx.fillRect(198, 12, 24, 246);
+
+      // Dashed road markings
+      ctx.save();
+      ctx.strokeStyle = "#eab308";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([7, 6]);
+
+      ctx.beginPath();
+      ctx.moveTo(20, 134);
+      ctx.lineTo(400, 134);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(210, 20);
+      ctx.lineTo(210, 250);
+      ctx.stroke();
+      ctx.restore();
+
+      // Harbor pier & boat at top edge
+      ctx.fillStyle = "#78350f";
+      ctx.fillRect(68, 2, 74, 16);
+      ctx.fillStyle = "#dc2626";
+      ctx.beginPath();
+      ctx.moveTo(154, 10);
+      ctx.lineTo(174, 4);
+      ctx.lineTo(174, 15);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawDistrictDetails(d) {
+      // Sidewalk strip
+      ctx.fillStyle = d.sidewalk;
+      ctx.fillRect(d.x + 6, d.y + 42, d.w - 12, 10);
+
+      if (d.id === "harbor") {
+        // Plaza fountain & benches
+        ctx.fillStyle = "#0284c7";
+        ctx.beginPath();
+        ctx.arc(d.x + 145, d.y + 76, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#bae6fd";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else if (d.id === "cafe") {
+        // Cafe building & clock tower mark
+        ctx.fillStyle = "#9a3412";
+        ctx.fillRect(d.x + 124, d.y + 56, 46, 34);
+        ctx.fillStyle = "#fef08a";
+        ctx.beginPath();
+        ctx.arc(d.x + 147, d.y + 70, 7, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (d.id === "market") {
+        // Market stalls
+        const colors = ["#d97706", "#0d9488", "#e11d48"];
+        colors.forEach((c, idx) => {
+          ctx.fillStyle = c;
+          ctx.fillRect(d.x + 14 + idx * 34, d.y + 58, 26, 22);
+        });
+      } else if (d.id === "warehouse") {
+        // Large warehouse roof & crates
+        ctx.fillStyle = "#450a0a";
+        ctx.fillRect(d.x + 12, d.y + 56, 78, 36);
+        ctx.strokeStyle = "#fca5a5";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(d.x + 12, d.y + 56, 78, 36);
+      }
     }
 
     function drawMap() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Water strip at very top & bottom edge
+      ctx.fillStyle = "#082f49";
+      ctx.fillRect(0, 0, canvas.width, 14);
+      ctx.fillRect(0, 256, canvas.width, 14);
+
+      drawRoadsAndPaths();
+
       districts.forEach((d) => {
-        ctx.fillStyle = d.color;
+        ctx.fillStyle = d.ground;
         ctx.strokeStyle = d.id === state.districtId ? "#ffffff" : d.border;
         ctx.lineWidth = d.id === state.districtId ? 3 : 1.5;
         ctx.beginPath();
@@ -245,23 +361,27 @@
         ctx.fill();
         ctx.stroke();
 
+        drawDistrictDetails(d);
+
         ctx.fillStyle = "#f8fafc";
         ctx.font = "bold 12px Arial";
-        ctx.fillText(d.name, d.x + 10, d.y + 22);
+        ctx.fillText(d.name, d.x + 10, d.y + 18);
 
         ctx.fillStyle = "#cbd5e1";
-        ctx.font = "11px Arial";
-        ctx.fillText(d.safe ? "Safe Zone" : "Contested Zone", d.x + 10, d.y + 38);
+        ctx.font = "10px Arial";
+        ctx.fillText(d.safe ? "Safe Zone" : "Contested Zone", d.x + 10, d.y + 32);
       });
 
+      // Treasure chest marker inside Warehouse
       if (!state.treasureClaimed) {
         ctx.fillStyle = "#facc15";
-        ctx.fillRect(350, 174, 18, 14);
+        ctx.fillRect(368, 224, 20, 15);
         ctx.strokeStyle = "#854d0e";
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(350, 174, 18, 14);
+        ctx.strokeRect(368, 224, 20, 15);
       }
 
+      // Guard bot patrol inside Warehouse
       if (state.guardsAlive > 0) {
         ctx.beginPath();
         ctx.arc(state.guardPos.x, state.guardPos.y, 7, 0, Math.PI * 2);
@@ -269,10 +389,9 @@
         ctx.fill();
       }
 
-      const activeDistrict = districts.find((d) => d.id === state.districtId) || districts[0];
-      const center = getDistrictCenter(activeDistrict);
+      // Player marker
       ctx.beginPath();
-      ctx.arc(center.x, center.y + 12, 8, 0, Math.PI * 2);
+      ctx.arc(state.playerPos.x, state.playerPos.y, 8, 0, Math.PI * 2);
       ctx.fillStyle = "#38bdf8";
       ctx.fill();
       ctx.strokeStyle = "#0f172a";
@@ -283,12 +402,17 @@
     setInterval(() => {
       if (state.guardsAlive > 0) {
         state.guardPos.x += state.guardPos.dir * 4;
-        if (state.guardPos.x > 335 || state.guardPos.x < 245) {
+        if (state.guardPos.x > 352 || state.guardPos.x < 282) {
           state.guardPos.dir *= -1;
         }
       }
+
+      const target = districts.find((d) => d.id === state.districtId) || districts[0];
+      state.playerPos.x += (target.spot.x - state.playerPos.x) * 0.35;
+      state.playerPos.y += (target.spot.y - state.playerPos.y) * 0.35;
+
       drawMap();
-    }, 140);
+    }, 100);
 
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -307,7 +431,7 @@
       state.districtId = d.id;
       state.zone = d.name;
       state.isSafe = d.safe;
-      logMsg(`Traveled to ${d.name}. ${d.safe ? "Safe Zone active." : "Contested Zone: combat enabled!"}`);
+      logMsg(`Moved along city streets to ${d.name}. ${d.safe ? "Safe Zone active." : "Contested Zone: combat enabled!"}`);
       updateUI();
       drawMap();
     }
@@ -357,7 +481,7 @@
 
     function attackRival() {
       if (state.isSafe) {
-        logMsg("Cannot attack inside a Safe Zone. Tap a Contested Zone first.");
+        logMsg("Cannot attack inside a Safe Zone. Travel to a Contested Zone first.");
         return;
       }
       if (state.alliedWithRival) {
@@ -456,14 +580,15 @@
       state.treasureClaimed = false;
       state.bots = 0;
       state.guardsAlive = 2;
-      state.guardPos = { x: 295, y: 162, dir: 1 };
+      state.guardPos = { x: 312, y: 212, dir: 1 };
+      state.playerPos = { x: 105, y: 86 };
       document.getElementById("log").innerHTML = "";
-      logMsg("Match reset. Tap any district on the map to begin.");
+      logMsg("Match reset. Tap any district on the city map to begin.");
       updateUI();
       drawMap();
     }
 
-    logMsg("Welcome to Dawn Horizon. Tap a district on the map to move.");
+    logMsg("Welcome to Dawn Horizon. Tap a district on the city map to move.");
     updateUI();
     drawMap();
   </script>
