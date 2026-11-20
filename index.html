@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Treasure of Dawn - Interactive Prototype</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body {
+      margin: 0;
+      padding: 12px;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    h1 { font-size: 20px; margin: 0 0 10px; color: #38bdf8; }
+    .grid { display: flex; flex-direction: column; gap: 12px; }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      font-size: 13px;
+    }
+    .stat-box {
+      background: #0f172a;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #293548;
+    }
+    .map-wrap {
+      margin-top: 8px;
+      background: #0b1324;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    canvas#cityMap {
+      width: 100%;
+      height: 220px;
+      display: block;
+      border-radius: 6px;
+      background: #132238;
+      touch-action: manipulation;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-top: 6px;
+    }
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+    button.danger { background: #dc2626; }
+    button.danger:hover { background: #b91c1c; }
+    button.warn { background: #d97706; }
+    button.warn:hover { background: #b45309; }
+    button.success { background: #16a34a; }
+    button.success:hover { background: #15803d; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    input {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      width: 110px;
+      font-size: 13px;
+    }
+    .log {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px;
+      height: 145px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .puzzle-step { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+    .puzzle-step:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 11px; background: #334155; }
+    .badge.ok { background: #15803d; }
+  </style>
+</head>
+<body>
+  <h1>Treasure of Dawn — Interactive Prototype</h1>
+
+  <div class="grid">
+    <!-- Status & Matchmaking -->
+    <div class="card">
+      <div class="stats">
+        <div class="stat-box">Player: <strong id="pName">Player_1</strong></div>
+        <div class="stat-box">HP: <strong id="pHp">100</strong> | Zone: <strong id="pZone">Harbor Plaza (Safe)</strong></div>
+        <div class="stat-box">Rival (Player_2) HP: <strong id="rHp">100</strong></div>
+        <div class="stat-box">Alliance: <strong id="allyStatus">None</strong></div>
+        <div class="stat-box">Map Pieces: <strong id="piecesCount">0 / 3</strong></div>
+        <div class="stat-box">Room: <strong id="roomInfo">5 Humans + 0 Bots</strong></div>
+      </div>
+      <div class="btn-row">
+        <button class="warn" onclick="fillBotsNow()">Fill Remaining Bots (16 Total)</button>
+        <button onclick="resetGame()">Reset Match</button>
+      </div>
+    </div>
+
+    <!-- Visual Interactive Map -->
+    <div class="card">
+      <strong>Tap Any District on the Map to Travel</strong>
+      <div class="map-wrap">
+        <canvas id="cityMap" width="400" height="220"></canvas>
+        <div class="legend">
+          <span><i class="dot" style="background:#22c55e;"></i>Safe Zone</span>
+          <span><i class="dot" style="background:#f59e0b;"></i>Contested Zone</span>
+          <span><i class="dot" style="background:#ef4444;"></i>Warehouse & Guards</span>
+          <span><i class="dot" style="background:#38bdf8;"></i>You</span>
+          <span><i class="dot" style="background:#f43f5e;"></i>Guard Bot</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alliances & Combat -->
+    <div class="card">
+      <strong>Alliances & Combat</strong>
+      <div class="btn-row">
+        <button class="success" onclick="formAlliance()">Form Alliance (Player_2)</button>
+        <button class="warn" onclick="breakAlliance()">Break Alliance</button>
+        <button class="danger" onclick="attackRival()">Attack Player_2 (-25 HP)</button>
+        <button class="danger" onclick="fightGuards()">Fight Treasure Guards</button>
+      </div>
+    </div>
+
+    <!-- Puzzles & Treasure -->
+    <div class="card">
+      <strong>Treasure Clues & Puzzles</strong>
+
+      <div class="puzzle-step">
+        <div>
+          Puzzle 1 — Cafe & Pier: Clock shows <strong>10:42</strong> (minute 42), Red Boat Pier is <strong>14</strong>. Subtract pier from minute.
+          <span id="p1Badge" class="badge">Locked</span>
+        </div>
+        <div class="btn-row">
+          <input type="number" id="p1Input" placeholder="Answer" />
+          <button onclick="solvePuzzle1()">Submit Code</button>
+        </div>
+      </div>
+
+      <div class="puzzle-step">
+        <div>
+          Puzzle 2 — Map Pieces: Collect all 3 map pieces (requires Puzzle 1 solved).
+          <span id="p2Badge" class="badge">0/3</span>
+        </div>
+        <div class="btn-row">
+          <button onclick="collectPiece()">Search & Collect Map Piece</button>
+        </div>
+      </div>
+
+      <div class="puzzle-step">
+        <div>
+          Puzzle 3 — Tide Lock: Enter the 3-digit code from the harbor tide notes (Hint: 3 + 6 + 9).
+          <span id="p3Badge" class="badge">Locked</span>
+        </div>
+        <div class="btn-row">
+          <input type="number" id="p3Input" placeholder="Code" />
+          <button class="success" onclick="claimTreasure()">Unlock & Claim Treasure</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="card">
+      <strong>Match Log</strong>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script>
+    const districts = [
+      { id: "harbor", name: "Harbor Plaza", safe: true, x: 15, y: 15, w: 175, h: 90, color: "#14532d", border: "#22c55e" },
+      { id: "cafe", name: "Seafront Cafe", safe: true, x: 210, y: 15, w: 175, h: 90, color: "#14532d", border: "#22c55e" },
+      { id: "market", name: "Old Market", safe: false, x: 15, y: 120, w: 175, h: 85, color: "#78350f", border: "#f59e0b" },
+      { id: "warehouse", name: "Abandoned Warehouse", safe: false, x: 210, y: 120, w: 175, h: 85, color: "#7f1d1d", border: "#ef4444" }
+    ];
+
+    const state = {
+      hp: 100,
+      rivalHp: 100,
+      districtId: "harbor",
+      zone: "Harbor Plaza",
+      isSafe: true,
+      alliedWithRival: false,
+      pieces: 0,
+      rivalPieces: 1,
+      puzzle1Solved: false,
+      treasureClaimed: false,
+      humans: 5,
+      bots: 0,
+      guardsAlive: 2,
+      guardPos: { x: 295, y: 162, dir: 1 }
+    };
+
+    const canvas = document.getElementById("cityMap");
+    const ctx = canvas.getContext("2d");
+
+    function logMsg(msg) {
+      const log = document.getElementById("log");
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      log.innerHTML = `<div>[${time}] ${msg}</div>` + log.innerHTML;
+    }
+
+    function getDistrictCenter(d) {
+      return { x: d.x + d.w / 2, y: d.y + d.h / 2 };
+    }
+
+    function drawMap() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      districts.forEach((d) => {
+        ctx.fillStyle = d.color;
+        ctx.strokeStyle = d.id === state.districtId ? "#ffffff" : d.border;
+        ctx.lineWidth = d.id === state.districtId ? 3 : 1.5;
+        ctx.beginPath();
+        ctx.roundRect(d.x, d.y, d.w, d.h, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 12px Arial";
+        ctx.fillText(d.name, d.x + 10, d.y + 22);
+
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "11px Arial";
+        ctx.fillText(d.safe ? "Safe Zone" : "Contested Zone", d.x + 10, d.y + 38);
+      });
+
+      if (!state.treasureClaimed) {
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(350, 174, 18, 14);
+        ctx.strokeStyle = "#854d0e";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(350, 174, 18, 14);
+      }
+
+      if (state.guardsAlive > 0) {
+        ctx.beginPath();
+        ctx.arc(state.guardPos.x, state.guardPos.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = "#f43f5e";
+        ctx.fill();
+      }
+
+      const activeDistrict = districts.find((d) => d.id === state.districtId) || districts[0];
+      const center = getDistrictCenter(activeDistrict);
+      ctx.beginPath();
+      ctx.arc(center.x, center.y + 12, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#38bdf8";
+      ctx.fill();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    setInterval(() => {
+      if (state.guardsAlive > 0) {
+        state.guardPos.x += state.guardPos.dir * 4;
+        if (state.guardPos.x > 335 || state.guardPos.x < 245) {
+          state.guardPos.dir *= -1;
+        }
+      }
+      drawMap();
+    }, 140);
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      const hit = districts.find((d) => x >= d.x && x <= d.x + d.w && y >= d.y && y <= d.y + d.h);
+      if (hit) {
+        moveToDistrict(hit);
+      }
+    });
+
+    function moveToDistrict(d) {
+      state.districtId = d.id;
+      state.zone = d.name;
+      state.isSafe = d.safe;
+      logMsg(`Traveled to ${d.name}. ${d.safe ? "Safe Zone active." : "Contested Zone: combat enabled!"}`);
+      updateUI();
+      drawMap();
+    }
+
+    function updateUI() {
+      document.getElementById("pHp").textContent = state.hp;
+      document.getElementById("pZone").textContent = `${state.zone} (${state.isSafe ? "Safe" : "Combat"})`;
+      document.getElementById("rHp").textContent = state.rivalHp;
+      document.getElementById("allyStatus").textContent = state.alliedWithRival ? "Allied (Player_2)" : "None";
+      document.getElementById("piecesCount").textContent = `${state.pieces} / 3`;
+      document.getElementById("roomInfo").textContent = `${state.humans} Humans + ${state.bots} Bots`;
+
+      const p1Badge = document.getElementById("p1Badge");
+      p1Badge.textContent = state.puzzle1Solved ? "Solved" : "Locked";
+      p1Badge.className = state.puzzle1Solved ? "badge ok" : "badge";
+
+      const p2Badge = document.getElementById("p2Badge");
+      p2Badge.textContent = `${state.pieces}/3`;
+      p2Badge.className = state.pieces >= 3 ? "badge ok" : "badge";
+
+      const p3Badge = document.getElementById("p3Badge");
+      p3Badge.textContent = state.treasureClaimed ? "Claimed!" : "Locked";
+      p3Badge.className = state.treasureClaimed ? "badge ok" : "badge";
+    }
+
+    function fillBotsNow() {
+      state.bots = Math.max(0, 16 - state.humans);
+      logMsg(`Matchmaking timer completed: spawned ${state.bots} bots (including warehouse guards).`);
+      updateUI();
+    }
+
+    function formAlliance() {
+      state.alliedWithRival = true;
+      logMsg("Formed a temporary alliance with Player_2.");
+      updateUI();
+    }
+
+    function breakAlliance() {
+      if (!state.alliedWithRival) {
+        logMsg("No active alliance to break.");
+        return;
+      }
+      state.alliedWithRival = false;
+      logMsg("Broke the temporary alliance with Player_2! Betrayal is on.");
+      updateUI();
+    }
+
+    function attackRival() {
+      if (state.isSafe) {
+        logMsg("Cannot attack inside a Safe Zone. Tap a Contested Zone first.");
+        return;
+      }
+      if (state.alliedWithRival) {
+        logMsg("Cannot attack Player_2 while allied. Break the alliance first.");
+        return;
+      }
+      state.rivalHp = Math.max(0, state.rivalHp - 25);
+      logMsg(`Attacked Player_2! Rival HP is now ${state.rivalHp}.`);
+      if (state.rivalHp === 0 && state.rivalPieces > 0) {
+        state.pieces = Math.min(3, state.pieces + state.rivalPieces);
+        state.rivalPieces = 0;
+        state.rivalHp = 100;
+        logMsg("Defeated Player_2 and looted a map piece!");
+      }
+      updateUI();
+    }
+
+    function fightGuards() {
+      if (state.districtId !== "warehouse") {
+        logMsg("Tap the Abandoned Warehouse on the map to fight the Treasure Guards.");
+        return;
+      }
+      if (state.guardsAlive <= 0) {
+        logMsg("All Treasure Guards in the warehouse are already neutralized.");
+        return;
+      }
+      state.guardsAlive -= 1;
+      state.hp = Math.max(10, state.hp - 20);
+      logMsg(`Engaged a Treasure Guard! Took 20 damage (HP: ${state.hp}). Guards left: ${state.guardsAlive}.`);
+      updateUI();
+      drawMap();
+    }
+
+    function solvePuzzle1() {
+      const val = parseInt(document.getElementById("p1Input").value, 10);
+      if (val === 28) {
+        state.puzzle1Solved = true;
+        logMsg("Puzzle 1 solved (42 - 14 = 28)! Map piece search unlocked.");
+      } else {
+        logMsg("Incorrect code for Puzzle 1. Check the clock minute and pier number.");
+      }
+      updateUI();
+    }
+
+    function collectPiece() {
+      if (!state.puzzle1Solved) {
+        logMsg("Solve Puzzle 1 first to locate map pieces.");
+        return;
+      }
+      if (state.pieces >= 3) {
+        logMsg("You already have all 3 map pieces.");
+        return;
+      }
+      state.pieces += 1;
+      logMsg(`Collected map piece #${state.pieces}.`);
+      if (state.pieces === 3) {
+        logMsg("All 3 map pieces collected! Tap the Abandoned Warehouse on the map.");
+      }
+      updateUI();
+    }
+
+    function claimTreasure() {
+      const code = parseInt(document.getElementById("p3Input").value, 10);
+      if (state.pieces < 3) {
+        logMsg("You need all 3 map pieces before unlocking the treasure.");
+        return;
+      }
+      if (state.districtId !== "warehouse") {
+        logMsg("Tap the Abandoned Warehouse on the map to open the chest.");
+        return;
+      }
+      if (state.guardsAlive > 0) {
+        logMsg("Clear the remaining Treasure Guards first!");
+        return;
+      }
+      if (code === 369) {
+        state.treasureClaimed = true;
+        logMsg("VICTORY! Tide Lock opened and the Captain's Compass Treasure is claimed!");
+      } else {
+        logMsg("Wrong Tide Lock code. Hint: 3 + 6 + 9.");
+      }
+      updateUI();
+      drawMap();
+    }
+
+    function resetGame() {
+      state.hp = 100;
+      state.rivalHp = 100;
+      state.districtId = "harbor";
+      state.zone = "Harbor Plaza";
+      state.isSafe = true;
+      state.alliedWithRival = false;
+      state.pieces = 0;
+      state.rivalPieces = 1;
+      state.puzzle1Solved = false;
+      state.treasureClaimed = false;
+      state.bots = 0;
+      state.guardsAlive = 2;
+      state.guardPos = { x: 295, y: 162, dir: 1 };
+      document.getElementById("log").innerHTML = "";
+      logMsg("Match reset. Tap any district on the map to begin.");
+      updateUI();
+      drawMap();
+    }
+
+    logMsg("Welcome to Dawn Horizon. Tap a district on the map to move.");
+    updateUI();
+    drawMap();
+  </script>
+</body>
+</html>
